@@ -13,55 +13,10 @@
 // MembufferCollection, although CListener::frameReady() was not called for every buffer.
 //
 
-#define _WIN32_WINNT 0x0500
-
-#include <iostream>
-#include <conio.h>
-
-#include <tisudshl.h>
-
-#include "CmdHelper.h"
-#include "Listener.h"
-
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/calib3d/calib3d.hpp>
-#include <opencv2/highgui/highgui.hpp>
-
-#include <thread>
-#include <mutex>
-
-using namespace _DSHOWLIB_NAMESPACE;
-
-// Specify the number of buffers to be used.
-#define NUM_BUFFERS 1
-
-const int AcqImgWidth  = 1280;
-const int AcqImgHeight = 960;
-
-//use img buffer to contain received images to avoid memory conflict between read and right on the same buffer
-const int imgBufferSize = 10;
-
-void snapImg(smart_ptr<FrameHandlerSink> pSink, bool &running){
-	while(running){
-		pSink ->snapImages( NUM_BUFFERS );	// Grab NUM_BUFFERS images.
-	}
-}
-
-inline void saveLeftRightImg(cv::Mat left, cv::Mat right, int frameCount){
-	char filename[MAX_PATH];
-	std::stringstream sstm;
-	sprintf( filename, "%02i.bmp", frameCount );
-	sstm << "raw/left" << filename; 
-	cv::imwrite(sstm.str(), left);
-	sstm.str("");
-	sstm << "raw/right" << filename; 
-	cv::imwrite(sstm.str(), right);
-}
+#include "ICDigitConfig.h"
 
 int main(int argc, char* argv[])
 {
-
 	DShowLib::InitLibrary();
 
 	atexit( ExitLibrary );
@@ -78,15 +33,19 @@ int main(int argc, char* argv[])
 	pRightListener->imgBufHeadIdx = 0;
 	pRightListener->imgBufferSize = imgBufferSize;
 								
+	leftGrabber.loadDeviceStateFromFile("leftDeviceState.xml");
+	rightGrabber.loadDeviceStateFromFile("rightDeviceState.xml");
+	if(!leftGrabber.isDevValid() || !rightGrabber.isDevValid())
+		return -1;
 	//讀影像資料
-	if( !setupDeviceFromFile( leftGrabber ) )
+	/*if( !setupDeviceFromFile( leftGrabber, "leftDeviceState.xml") )
 	{
 		return -1;
 	}
-	if( !setupDeviceFromFile( rightGrabber ) )
+	if( !setupDeviceFromFile( rightGrabber, "rightDeviceState.xml" ) )
 	{
 		return -1;
-	}
+	}*/
 	
 	// Assign the number of buffers to the cListener object.
 	pLeftListener->setBufferSize( NUM_BUFFERS );
@@ -166,6 +125,9 @@ int main(int argc, char* argv[])
 		
 		memcpy(left.data, pLeftListener->imgBuffer[L_Idx], pLeftBuffer->getBufferSize());
 		memcpy(right.data, pRightListener->imgBuffer[R_Idx], pRightBuffer->getBufferSize());
+		//memcpy(left.data, pLeftSink->getLastAcqMemBuffer()->getPtr(), pLeftBuffer->getBufferSize());
+		//memcpy(right.data, pRightSink->getLastAcqMemBuffer()->getPtr(), pRightBuffer->getBufferSize());
+
 
 		//left
 		cv::namedWindow("left", CV_WINDOW_FREERATIO);
