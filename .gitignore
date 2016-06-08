@@ -1,0 +1,11 @@
+obj/*
+raw/*
+main.exe
+*.xml
+*.vcxproj
+*.vcxproj.user
+*.suo
+*.sln
+*.sdf
+*.opensdf
+*.db
