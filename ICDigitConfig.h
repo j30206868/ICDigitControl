@@ -8,7 +8,6 @@
 #include <tisudshl.h>
 
 #include "CmdHelper.h"
-#include "Listener.h"
 
 #include <thread>
 
@@ -20,29 +19,9 @@
 using namespace _DSHOWLIB_NAMESPACE;
 
 // Specify the number of buffers to be used.
-#define NUM_BUFFERS 1
+#define NUM_BUFFERS 15
 
-const int AcqImgWidth  = 1280;
-const int AcqImgHeight = 960;
-
-//use img buffer to contain received images to avoid memory conflict between read and right on the same buffer
-const int imgBufferSize = 5;
-
-void snapImg(smart_ptr<FrameHandlerSink> pSink, bool &running){
-	while(running){
-		pSink ->snapImagesAsync( NUM_BUFFERS );	// Grab NUM_BUFFERS images.
-	}
-}
-
-inline void saveLeftRightImg(cv::Mat left, cv::Mat right, int frameCount){
-	char filename[MAX_PATH];
-	std::stringstream sstm;
-	sprintf( filename, "%02i.bmp", frameCount );
-	sstm << "raw/left" << filename; 
-	cv::imwrite(sstm.str(), left);
-	sstm.str("");
-	sstm << "raw/right" << filename; 
-	cv::imwrite(sstm.str(), right);
-}
+static const int AcqImgWidth  = 1280;
+static const int AcqImgHeight = 960;
 
 #endif //H_ICDIGITCONFIG_H
