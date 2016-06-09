@@ -9,20 +9,60 @@ private:
 	int frameCount;
 };
 
+void highPass(cv::Mat input, int r){
+	cv::Mat blur;
+	cv::blur(input, blur, cv::Size(r, r));
+	//GaussianBlur(img, blurImg, Size(30, 30), 0, 0);
+
+	for(int i=0 ; i<input.rows * input.cols ; i++){
+		int result = input.data[i] - blur.data[i] + 128;
+		if(result < 0)
+			result = 0;
+		else if(result > 255)
+			result = 255;
+		input.data[i] = result;
+	}
+}
+
+void histogramEqualize(cv::Mat input){
+	int totalNode = input.rows * input.cols;
+
+	int histogram[256];
+	memset(histogram, 0, sizeof(int) * 256);
+	for(int i=0 ; i<totalNode; i++){
+		histogram[input.data[i]]++;
+	}
+
+	uchar lookup[256];
+	for(int i=0 ; i<256 ; i++){
+		if(i > 0)
+			histogram[i] += histogram[i-1];
+		lookup[i] = histogram[i] / (double)totalNode * 255;
+	}
+
+	for(int i=0 ; i<totalNode; i++){
+		input.data[i] = lookup[ input.data[i] ];
+	}
+}
+
+using namespace cv;
+
 int main(int argc, char* argv[])
 {
-	DShowLib::InitLibrary();
+	Mat img = imread("raw/s_left01.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	Mat blurImg;
+	cv::blur(img, blurImg, cv::Size(5, 5));
 
-	atexit( ExitLibrary );
+	highPass(blurImg, 60);
 
-	DUAL_VCD_READER myreader;
-	myreader.init();
+	histogramEqualize(blurImg);
 
-	DUAL_VCD_CALLBACK *mycallback = new MyVCDCallback();
+	namedWindow("Result", CV_WINDOW_NORMAL);
+	imshow("Result", blurImg);
 
-	myreader.start(mycallback);
-
-	delete mycallback;
+	namedWindow("Output", CV_WINDOW_NORMAL);
+	imshow("Output", img);
+	cvWaitKey(0);
 
 	std::cout << "Press any key to continue!" << std::endl;
 	std::cin.get();
