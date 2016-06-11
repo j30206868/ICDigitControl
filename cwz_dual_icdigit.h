@@ -1,4 +1,5 @@
 #ifndef CWZ_DUAL_ICDIGIT_H
+#define CWZ_DUAL_ICDIGIT_H
 
 #include "ICDigitConfig.h"
 

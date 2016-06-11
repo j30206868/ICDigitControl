@@ -1,12 +1,22 @@
 #include "cwz_dual_icdigit.h"
+#include "cwz_stereo.h"
 
 class MyVCDCallback : public DUAL_VCD_CALLBACK {
 public:
 	MyVCDCallback();
+	~MyVCDCallback();
 	void imgProc (cv::Mat left, cv::Mat right);
+
+	bool runningLogger;
+	char inputKey;
+	std::thread keyLogger;
 private:
 	bool isKeyPressed;
 	int frameCount;
+	//calibration
+	bool isCalibrationOn; 
+	CALIB_PROC calib_proc;
+	//
 };
 
 void highPass(cv::Mat input, int r){
@@ -49,7 +59,7 @@ using namespace cv;
 
 int main(int argc, char* argv[])
 {
-	Mat img = imread("raw/s_left01.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	/*Mat img = imread("raw/s_left01.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	Mat blurImg;
 	cv::blur(img, blurImg, cv::Size(5, 5));
 
@@ -62,18 +72,44 @@ int main(int argc, char* argv[])
 
 	namedWindow("Output", CV_WINDOW_NORMAL);
 	imshow("Output", img);
-	cvWaitKey(0);
+	cvWaitKey(0);*/
+
+	MyVCDCallback *mycallback = new MyVCDCallback();
+
+	SAM_STEREO_READER reader;
+	reader.init();
+	reader.start(mycallback);
 
 	std::cout << "Press any key to continue!" << std::endl;
 	std::cin.get();
 	return 0;
 }
 
+void keyLog(char *inputKey, bool *running){
+	while(*running){
+		if(*inputKey == '\0')
+			*inputKey = getch();
+	}
+}
+
 MyVCDCallback::MyVCDCallback(){
 	isKeyPressed = false;
 	frameCount = 1;
+	isCalibrationOn = false;
+	calib_proc.init(640, 480);
+
+	runningLogger = true;
+	inputKey = '\0';
+	keyLogger = std::thread(keyLog, &this->inputKey, &this->runningLogger);
 }
+MyVCDCallback::~MyVCDCallback(){
+	runningLogger = false;
+	keyLogger.join();
+}
+
 void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
+	calib_proc.remapping(left, right);
+
 	//left
 	cv::namedWindow("left", CV_WINDOW_FREERATIO);
 	cv::imshow("left", left);
@@ -83,8 +119,31 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 	cv::imshow("right", right);
 	cvWaitKey(1);
 
+	if(inputKey == 'c' || inputKey == 'C'){
+		if( isCalibrationOn ){
+			calib_proc.closeImgListFileStream();
+			calib_proc.stereoCalibAndRectify();
+			isCalibrationOn = false;
+		}else{
+			calib_proc.openImgListFileStream();
+			isCalibrationOn = true;
+		}
+	}
+
+	if(inputKey == 't' || inputKey == 'T'){
+		calib_proc.valid_calib_param = calib_proc.valid_calib_param ? false : true;
+		calib_proc.valid_calib_param ? printf("calib_proc.valid_calib_param: true\n") : printf("calib_proc.valid_calib_param: false\n");
+	}
+
+	if(isCalibrationOn){
+		if(inputKey == 's' || inputKey == 'S'){
+			calib_proc.saveNewCalibImg(left, right);
+			printf("Calibration Proc: save new calibration file number %d\n", calib_proc.calib_frame_number);
+		}
+	}
+
 	SHORT upKeyState = GetAsyncKeyState(VK_UP);
-	if( ( 1 << 16 ) & upKeyState){
+	if( ( 1 << 16 ) & upKeyState ){
 		if(!isKeyPressed){
 			saveLeftRightImg(left, right, frameCount);
 			std::cout << "frameCount: "  << frameCount  << std::endl;
@@ -94,5 +153,7 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 	}else{
 		isKeyPressed = false;
 	}
+
+	inputKey = '\0';
 }
 

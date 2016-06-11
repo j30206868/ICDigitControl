@@ -1,4 +1,5 @@
 #ifndef H_ICDIGITCONFIG_H
+#define H_ICDIGITCONFIG_H
 
 #define _WIN32_WINNT 0x0500
 
@@ -21,7 +22,7 @@ using namespace _DSHOWLIB_NAMESPACE;
 // Specify the number of buffers to be used.
 #define NUM_BUFFERS 15
 
-static const int AcqImgWidth  = 1280;
-static const int AcqImgHeight = 960;
+#define AcqImgWidth  1280
+#define AcqImgHeight  960
 
 #endif //H_ICDIGITCONFIG_H
