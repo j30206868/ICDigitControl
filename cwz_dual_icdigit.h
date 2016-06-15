@@ -17,6 +17,10 @@ inline void saveLeftRightImg(cv::Mat left, cv::Mat right, int frameCount){
 class DUAL_VCD_CALLBACK;
 class DUAL_VCD_READER;
 
+
+#define DUAL_VCD_COLOR_TYPE eRGB24
+
+
 class DUAL_VCD_CALLBACK{
 public:
 	virtual void imgProc (cv::Mat left, cv::Mat right) = 0;

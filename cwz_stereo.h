@@ -35,6 +35,8 @@ public:
 	cv::Mat P2;
 	cv::Mat Q;
 	cv::Mat rmap[2][2];
+	cv::Rect validRoi[2];
+	cv::Rect commonRoi;
 	//
 	std::string calib_img_path;
 	std::string img_list_xml_path;
@@ -45,7 +47,7 @@ public:
 	bool img_list_fstream_opened;
 	std::ofstream fs;
 	
-	void init(int w, int h);
+	void init();
 	void readCameraIntrAndExtr();
 
 	void openImgListFileStream();
@@ -57,14 +59,10 @@ public:
 
 	bool checkIfFileExist (const std::string& name);
 
-	inline void remapping(cv::Mat &left, cv::Mat &right){
-	if( valid_calib_param ){
-		cv::Mat l_t = left.clone();
-		cv::Mat r_t = right.clone();
-		remap(l_t, left, rmap[0][0], rmap[0][1], CV_INTER_LINEAR);
-		remap(r_t, right, rmap[1][0], rmap[1][1], CV_INTER_LINEAR);
-	}
-}
+	void remapAndDrawRoi(cv::Mat &left, cv::Mat &right);
+	void remapAndCutRoi(cv::Mat &left, cv::Mat &right);
+	void remapping(cv::Mat &left, cv::Mat &right);
+	void cutRoi(cv::Mat &left, cv::Mat &right);
 };
 
 

@@ -30,8 +30,8 @@ void DUAL_VCD_READER::stop(){
 
 void DUAL_VCD_READER::start(DUAL_VCD_CALLBACK *callback){
 	// Create a FrameTypeInfoArray data structure describing the allowed color formats.
-	FrameTypeInfo leftTypeInfo ( eRGB8, AcqImgWidth, AcqImgHeight );
-	FrameTypeInfo rightTypeInfo( eRGB8, AcqImgWidth, AcqImgHeight );
+	FrameTypeInfo leftTypeInfo ( DUAL_VCD_COLOR_TYPE, AcqImgWidth, AcqImgHeight );
+	FrameTypeInfo rightTypeInfo( DUAL_VCD_COLOR_TYPE, AcqImgWidth, AcqImgHeight );
 
 	// Create the frame handler sink
 	smart_ptr<FrameHandlerSink> pLeftSink  = FrameHandlerSink::create( leftTypeInfo , NUM_BUFFERS );

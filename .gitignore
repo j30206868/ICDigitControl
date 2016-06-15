@@ -2,6 +2,9 @@ obj/*
 Calibration/*
 ICDigitXML/*
 raw/*
+clkernel/*
+Calibration(Sam)/*
+Callback.vcxproj.*
 main.exe
 *.xml
 *.vcxproj

@@ -14,10 +14,10 @@ void SAM_STEREO_READER::stop(){
 int SAM_STEREO_READER::start(DUAL_VCD_CALLBACK *callback){
 	recording = true;
 
-	cv::VideoCapture rightCap(0); // open the default camera
+	cv::VideoCapture leftCap(0); // open the default camera
+	cv::VideoCapture rightCap(1); // open the default camera
 	if(!rightCap.isOpened())  // check if we succeeded
 		return 0;
-	cv::VideoCapture leftCap(1); // open the default camera
 	if(!leftCap.isOpened())  // check if we succeeded
 		return 0;
 
@@ -36,16 +36,16 @@ int SAM_STEREO_READER::start(DUAL_VCD_CALLBACK *callback){
 			hasShowedImgInfo = true;
 		}
 
-		cv::cvtColor(leftC , left , cv::COLOR_BGR2GRAY);
-		cv::cvtColor(rightC, right, cv::COLOR_BGR2GRAY);
+		//cv::cvtColor(leftC , left , cv::COLOR_BGR2GRAY);
+		//cv::cvtColor(rightC, right, cv::COLOR_BGR2GRAY);
 
-		callback->imgProc(left, right);
+		callback->imgProc(leftC, rightC);
 	}
 
 	return 1;
 }
 
-void CALIB_PROC::init(int w, int h){
+void CALIB_PROC::init(){
 	calib_img_path     = "Calibration/";
 	img_list_xml_path  = "Calibration/";
 	img_list_xml_fname = "StereoCalibImageList.xml";
@@ -53,7 +53,6 @@ void CALIB_PROC::init(int w, int h){
 	calib_frame_number = 0;
 	img_list_fstream_opened = false;
 	valid_calib_param = false;
-	imageSize = cv::Size(w, h); 
 	readCameraIntrAndExtr();
 }
 void CALIB_PROC::openImgListFileStream(){
@@ -95,6 +94,7 @@ void CALIB_PROC::closeImgListFileStream(){
 		fs << "</opencv_storage>" << std::endl;
 		fs.close();
 		printf("CALIB_PROC Stream Off\n");
+		calib_frame_number = 0;
 		img_list_fstream_opened = false;
 	}
 }
@@ -307,6 +307,8 @@ StereoCalib(std::string calib_yml_path, const vector<string>& imagelist, Size bo
     if( fs.isOpened() )
     {
         fs << "R" << R << "T" << T << "R1" << R1 << "R2" << R2 << "P1" << P1 << "P2" << P2 << "Q" << Q;
+		fs << "ROI1" << validRoi[0] << "ROI2" << validRoi[1];
+		fs << "ImageSize" << imageSize;
         fs.release();
     }
     else
@@ -418,7 +420,6 @@ void CALIB_PROC::readCameraIntrAndExtr(){
 		fsi["D2"] >> distCoeffs[1];
 		fsi.release();
 
-	
 		FileStorage fse(esstm.str(), FileStorage::READ);
 		fse["R"] >> R;
 		fse["T"] >> T;
@@ -427,6 +428,9 @@ void CALIB_PROC::readCameraIntrAndExtr(){
 		fse["P1"] >> P1;
 		fse["P2"] >> P2;
 		fse["Q"] >> Q;
+		fse["ROI1"] >> validRoi[0];
+		fse["ROI2"] >> validRoi[1];
+		fse["ImageSize"] >> imageSize;
 		fse.release();
 	}
 
@@ -435,6 +439,15 @@ void CALIB_PROC::readCameraIntrAndExtr(){
 	}else{
 		initUndistortRectifyMap(cameraMatrix[0], distCoeffs[0], R1, P1, imageSize, CV_16SC2, rmap[0][0], rmap[0][1]);
 		initUndistortRectifyMap(cameraMatrix[1], distCoeffs[1], R2, P2, imageSize, CV_16SC2, rmap[1][0], rmap[1][1]);
+		
+		int maxSX = max(validRoi[0].x, validRoi[1].x);
+		int minEX = min(validRoi[0].x + validRoi[0].width - 1, validRoi[1].x + validRoi[1].width - 1);
+		int maxSY = max(validRoi[0].y, validRoi[1].y);
+		int minEY = min(validRoi[0].y + validRoi[0].height - 1, validRoi[1].y + validRoi[1].height - 1);
+
+		commonRoi = cv::Rect(maxSX, maxSY, minEX-maxSX+1, minEY-maxSY+1);
+		printf("commonRoi(%d, %d, %d, %d)\n", commonRoi.x, commonRoi.y, commonRoi.width, commonRoi.height);
+		
 		valid_calib_param = true;
 		printf("CALIB_PROC: valid_calib_param = true\n");
 	}
@@ -464,4 +477,81 @@ bool CALIB_PROC::checkIfFileExist (const std::string& name) {
         return false;
     }   
 }
+void CALIB_PROC::remapAndDrawRoi(cv::Mat &left, cv::Mat &right){
+	if( valid_calib_param ){
+		cv::Mat l_t = left.clone();
+		cv::Mat r_t = right.clone();
+		remap(l_t, left, rmap[0][0], rmap[0][1], CV_INTER_LINEAR);
+		remap(r_t, right, rmap[1][0], rmap[1][1], CV_INTER_LINEAR);
 
+		rectangle(left, validRoi[0], cv::Scalar(255), 3, 8);
+		rectangle(right, validRoi[1], cv::Scalar(255), 3, 8);
+	}
+}
+void CALIB_PROC::remapAndCutRoi(cv::Mat &left, cv::Mat &right){
+	if( valid_calib_param ){
+		cv::Mat l_t = left.clone();
+		cv::Mat r_t = right.clone();
+		remap(l_t, left, rmap[0][0], rmap[0][1], CV_INTER_LINEAR);
+		remap(r_t, right, rmap[1][0], rmap[1][1], CV_INTER_LINEAR);
+		//left  = left(commonRoi);
+		//right = right(commonRoi);
+
+		cv::Mat ltmp = left.clone();
+		cv::Mat rtmp = right.clone();
+		left  = cv::Mat(commonRoi.height, commonRoi.width, l_t.type());
+		right = cv::Mat(commonRoi.height, commonRoi.width, l_t.type());
+		int channel;
+		if(l_t.type() == CV_8UC3)
+			channel = 3;
+		else
+			channel = 1;
+		int newid = 0;
+		int sid   = commonRoi.y * ltmp.cols * channel + commonRoi.x * channel;
+		int len   = (commonRoi.y+commonRoi.height) * ltmp.cols * channel;
+		int step  = ltmp.cols * channel;
+		int cpybytes = sizeof(uchar) * commonRoi.width * channel;
+		int newid_step = left.cols * channel;
+		for(int i=sid ; i<len ; i+=step){
+			memcpy(&left.data[newid] , &ltmp.data[i], cpybytes);
+			memcpy(&right.data[newid], &rtmp.data[i], cpybytes);
+			newid+=newid_step;
+		}
+	}
+}
+void CALIB_PROC::remapping(cv::Mat &left, cv::Mat &right){
+	if( valid_calib_param ){
+		cv::Mat l_t = left.clone();
+		cv::Mat r_t = right.clone();
+		remap(l_t, left, rmap[0][0], rmap[0][1], CV_INTER_LINEAR);
+		remap(r_t, right, rmap[1][0], rmap[1][1], CV_INTER_LINEAR);
+	}
+}
+void CALIB_PROC::cutRoi(cv::Mat &left, cv::Mat &right){
+	if( valid_calib_param ){
+		//left  = left(commonRoi);
+		//right = right(commonRoi);
+		cv::Mat ltmp = left.clone();
+		cv::Mat rtmp = right.clone();
+		left  = cv::Mat(commonRoi.height, commonRoi.width, ltmp.type());
+		right = cv::Mat(commonRoi.height, commonRoi.width, ltmp.type());
+		int channel;
+		if(ltmp.type() == CV_8UC3)
+			channel = 3;
+		else
+			channel = 1;
+		int newid = 0;
+		int sid   = commonRoi.y * ltmp.cols * channel + commonRoi.x * channel;
+		int len   = (commonRoi.y+commonRoi.height) * ltmp.cols * channel;
+		int step  = ltmp.cols * channel;
+		int cpybytes = sizeof(uchar) * commonRoi.width * channel;
+		int newid_step = left.cols * channel;
+		for(int i=sid ; i<len ; i+=step){
+			memcpy(&left.data[newid] , &ltmp.data[i], cpybytes);
+			memcpy(&right.data[newid], &rtmp.data[i], cpybytes);
+			newid+=newid_step;
+		}
+	}
+	//left  = remapLeft(validRoi[0]);
+	//right = remapRight(validRoi[1]);
+}
