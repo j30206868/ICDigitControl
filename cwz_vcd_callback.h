@@ -31,6 +31,8 @@ public:
 	void showLeftRight(cv::Mat left, cv::Mat right);
 	void showLeftRightMerged(cv::Mat left, cv::Mat right);
 
+	void flipLeftRight(cv::Mat &left, cv::Mat &right);
+
 	bool runningLogger;
 	char inputKey;
 	std::thread keyLogger;
@@ -49,6 +51,7 @@ private:
 	bool isDispInit;
 	dmap_gen dmap_generator;
 	dmap_refine dmap_ref;
+	int disp_fcount;
 	//
 };
 

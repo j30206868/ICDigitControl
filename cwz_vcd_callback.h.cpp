@@ -10,11 +10,11 @@ void keyLog(char *inputKey, bool *running){
 		if(*inputKey == '\0')
 			for (int i=0; i<36; i++){
 				if( GetAsyncKeyState(chType[i]) ){
-					*inputKey = chType[i];
+						*inputKey = chType[i];
 				}
 			}
 		//every 100 ms
-		Sleep(100);
+		Sleep(50);
 	}
 }
 
@@ -32,23 +32,48 @@ MyVCDCallback::MyVCDCallback(){
 	device = setup_opencl(context, err);
 	program = load_program(context, "clkernel/test.cl");
 	if(program == 0) { std::cerr << "Can't load or build program\n"; clReleaseContext(context); system("PAUSE"); }
+	disp_fcount = 0;
 }
 MyVCDCallback::~MyVCDCallback(){
 	runningLogger = false;
 	keyLogger.join();
 }
 
+static bool highPassOn = false;
 void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
+	flipLeftRight(left, right);
+
 	//calib_proc.remapAndDrawRoi(left, right);
 	//calib_proc.remapping(left, right);
 	//calib_proc.remapAndCutRoi(left, right);
 
 	//showLeftRightMerged(left, right);
 
+	if(inputKey == 'H'){
+		highPassOn = highPassOn? false : true;
+	}
+
+	if(highPassOn){
+		cv::Mat blurLeft  = left.clone();
+		cv::Mat blurRight = right.clone();
+		cv::blur(blurLeft, left, cv::Size(20, 20));
+		cv::blur(blurRight, right, cv::Size(20, 20));
+		int ch;
+		if(left.type() == CV_8UC3)
+			ch = 3;
+		else
+			ch = 1;
+
+		highPass(left, ch, 50);
+		histogramEqualize(left, ch);
+		highPass(right, ch, 50);
+		histogramEqualize(right, ch);
+	}	
+
 	showLeftRight(left, right);
 
 	//printf("img cut dimension(%d, %d)\n", left.cols, left.rows);
-	/*if(calib_proc.valid_calib_param){
+	if(calib_proc.valid_calib_param){
 		if(!isDispInit){
 			
 			for(subsample_divider = 1 ;; subsample_divider*=2){
@@ -57,12 +82,13 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 				else
 					info = createMatchInfo(left.cols/subsample_divider, left.rows/subsample_divider, 1);
 
-				if(info->max_x_d < 255)
+				if(info->max_x_d < 230)
 					break;
 				else
 					delete info;
 			}
 			info->printf_match_info("Subsample Info");
+			printf("max_x_disparity: %d\n", info->max_x_d);
 			printf("subsample_divider: %d\n", subsample_divider);
 
 			cv::Mat left_b = left.clone();
@@ -70,6 +96,7 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 			cv::resize(left_b, left, cv::Size(left_b.cols/subsample_divider, left_b.rows/subsample_divider));
 			cv::resize(right_b, right, cv::Size(right_b.cols/subsample_divider, right_b.rows/subsample_divider));
 			printf("resize left right dimension(%d, %d)\n", left.cols, left.rows);
+			
 
 			dmap_generator.init(context, device, program, err, left, right, *info);
 			dmap_ref.init(dmap_generator.mst_L, *info, dmap_generator.left_dmap, dmap_generator.right_dmap);
@@ -85,18 +112,7 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 			cv::resize(right_b, right, cv::Size(right_b.cols/subsample_divider, right_b.rows/subsample_divider));
 		}
 
-		
-
 		if(inputKey == 'D'){
-			//cv::Mat blurLeft  = left.clone();
-			//cv::Mat blurRight = right.clone();
-			//cv::blur(blurLeft, left, cv::Size(5, 5));
-			//highPass(left, 3, 60);
-			//histogramEqualize(left, 3);
-			//cv::blur(blurRight, right, cv::Size(5, 5));
-			//highPass(right, 3, 60);
-			//histogramEqualize(right, 3);
-
 			dmap_generator.set_left_right(left, right);
 
 			dmap_generator.filtering();
@@ -117,23 +133,28 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 			cwz_mst::updateSigma(cwz_mst::sigma / 4);
 
 			//把黑色之外地方的深度全部歸零
-			//for(int i=0 ; i<info->node_c ; i++){
-			//	if(dmap_generator.left_gray_1d_arr[i] >= 170){
-			//		refined_dmap[i] = 0;
-			//	}
-			//}
+			for(int i=0 ; i<info->node_c ; i++){
+				if(dmap_generator.left_gray_1d_arr[i] >= 170){
+					refined_dmap[i] = 0;
+				}
+			}
 
-			if(true)
+			if(false)
 				show_cv_img("left_dmap", left_dmap, info->img_height, info->img_width, 1, false);
-			if(true)
+			if(false)
 				show_cv_img("right_dmap", right_dmap, info->img_height, info->img_width, 1, false);
 			//顯示深度影像 並在window標題加上frame_count編號
-			show_cv_img(0, "深度影像", refined_dmap, info->img_height, info->img_width, 1, true);
+			show_cv_img(0, "深度影像", refined_dmap, info->img_height, info->img_width, 1, false);
 
+			write_cv_img(disp_fcount+1, "raw/left", left);
+			write_cv_img(disp_fcount+1, "raw/right", right);
+			write_cv_img(disp_fcount+1, "raw/disp", refined_dmap, info->img_height, info->img_width, CV_8UC1);
+			disp_fcount++;
+	
 			dmap_generator.mst_L.reinit();
 			dmap_generator.mst_R.reinit();
 		}
-	}*/
+	}
 	
 	toggleCalibProc(left, right);
 
@@ -192,6 +213,11 @@ void MyVCDCallback::toggleCalibProc(cv::Mat left, cv::Mat right){
 
 	if(isCalibrationOn){
 		if(inputKey == 'S'){
+			//cv::Mat left_b = left.clone();
+			//cv::Mat right_b = right.clone();
+			//cv::resize(left_b, left, cv::Size(left_b.cols/2, left_b.rows/2));
+			//cv::resize(right_b, right, cv::Size(right_b.cols/2, right_b.rows/2));
+
 			calib_proc.saveNewCalibImg(left, right);
 			printf("Calibration Proc: save new calibration file number %d\n", calib_proc.calib_frame_number);
 		}
@@ -228,4 +254,11 @@ void MyVCDCallback::showLeftRightMerged(cv::Mat left, cv::Mat right){
 	cv::namedWindow("Combined", CV_WINDOW_FREERATIO);
 	cv::imshow("Combined", frame);
 	cvWaitKey(1);
+}
+
+void MyVCDCallback::flipLeftRight(cv::Mat &left, cv::Mat &right){
+	cv::Mat fl = left.clone();
+	cv::Mat fr = right.clone();
+	cv::flip(fl, left, 0);
+	cv::flip(fr, right, 0);
 }

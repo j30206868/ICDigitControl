@@ -55,8 +55,13 @@ void DUAL_VCD_READER::start(DUAL_VCD_CALLBACK *callback){
 	//
 	smart_ptr<MemBuffer> pLeftBuffer  = pLeftSink ->getMemBufferCollection()->getBuffer( 0 );
 	smart_ptr<MemBuffer> pRightBuffer = pRightSink->getMemBufferCollection()->getBuffer( 0 );
-	left  = cv::Mat(pLeftBuffer->getSize().cy, pLeftBuffer->getSize().cx, CV_8UC1);
-	right = cv::Mat(pRightBuffer->getSize().cy, pRightBuffer->getSize().cx, CV_8UC1);
+	if(DUAL_VCD_COLOR_TYPE == eRGB8){
+		left  = cv::Mat(pLeftBuffer->getSize().cy, pLeftBuffer->getSize().cx, CV_8UC1);
+		right = cv::Mat(pRightBuffer->getSize().cy, pRightBuffer->getSize().cx, CV_8UC1);
+	}else if (DUAL_VCD_COLOR_TYPE == eRGB24){
+		left  = cv::Mat(pLeftBuffer->getSize().cy, pLeftBuffer->getSize().cx, CV_8UC3);
+		right = cv::Mat(pRightBuffer->getSize().cy, pRightBuffer->getSize().cx, CV_8UC3);
+	}
 
 	//show information
 	std::cout << "==== Image Information ====" << std::endl;
@@ -65,7 +70,7 @@ void DUAL_VCD_READER::start(DUAL_VCD_CALLBACK *callback){
 	std::cout << "Bits per pixel      : " << pLeftBuffer->getBitsPerPixel() << std::endl;
 
 
-	const int poolSize = 500;
+	const int poolSize = 100;
 	std::thread leftThreads[poolSize];
 	std::thread rightThreads[poolSize];
 	for(int i=0 ; i<poolSize ; i++){

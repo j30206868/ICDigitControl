@@ -9,6 +9,7 @@ using namespace cv;
 
 int main(int argc, char* argv[])
 {
+
 	/*Mat img = imread("raw/s_left01.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	Mat blurImg;
 	cv::blur(img, blurImg, cv::Size(5, 5));
@@ -31,7 +32,7 @@ int main(int argc, char* argv[])
 	reader.init();
 	reader.start(mycallback);*/
 	DUAL_VCD_READER myreader;
-	myreader.init(false);
+	myreader.init();
 	myreader.start(mycallback);
 
 	std::cout << "Press any key to continue!" << std::endl;

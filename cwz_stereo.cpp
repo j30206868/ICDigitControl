@@ -69,6 +69,9 @@ void CALIB_PROC::openImgListFileStream(){
 void CALIB_PROC::writeToImgListFileStream(std::string fname){
 	fs << "\"" << fname << "\"" << std::endl;
 }
+/*void CALIB_PROC::saveNewStereoAndDisp(cv::Mat left, cv::Mat right, cv::Mat disp){
+
+}*/
 void CALIB_PROC::saveNewCalibImg(cv::Mat left, cv::Mat right){
 	char fileNumberStr[20];
 	sprintf(fileNumberStr, "%02i", calib_frame_number+1);
