@@ -50,10 +50,15 @@ void CALIB_PROC::init(){
 	img_list_xml_path  = "Calibration/";
 	img_list_xml_fname = "StereoCalibImageList.xml";
 	img_ext            = ".bmp";
+	//
+	proj_calib_file_path = "Projector/";
+	//
 	calib_frame_number = 0;
 	img_list_fstream_opened = false;
 	valid_calib_param = false;
+	valid_proj_calib_param = false;
 	readCameraIntrAndExtr();
+	readProjIntrAndExtr();
 }
 void CALIB_PROC::openImgListFileStream(){
 	std::stringstream sstm;
@@ -126,7 +131,7 @@ StereoCalib(std::string calib_yml_path, const vector<string>& imagelist, Size bo
 
     bool displayCorners = false;//true;
     const int maxScale = 2;
-    const float squareSize = 1.f;  // Set this to your actual square size
+    const float squareSize = 0.5f;  // Set this to your actual square size
     // ARRAY AND VECTOR STORAGE:
 
     vector<vector<Point2f> > imagePoints[2];
@@ -167,7 +172,7 @@ StereoCalib(std::string calib_yml_path, const vector<string>& imagelist, Size bo
                 else
                     resize(img, timg, Size(), scale, scale);
                 found = findChessboardCorners(timg, boardSize, corners,
-                    CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_NORMALIZE_IMAGE);
+                    CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_NORMALIZE_IMAGE | cv::CALIB_CB_FILTER_QUADS);
                 if( found )
                 {
                     if( scale > 1 )
@@ -187,7 +192,7 @@ StereoCalib(std::string calib_yml_path, const vector<string>& imagelist, Size bo
                 double sf = 640./MAX(img.rows, img.cols);
                 resize(cimg, cimg1, Size(), sf, sf);
                 imshow("corners", cimg1);
-                char c = (char)waitKey(500);
+                char c = (char)waitKey(0);
                 if( c == 27 || c == 'q' || c == 'Q' ) //Allow ESC to quit
                     exit(-1);
             }
@@ -455,8 +460,30 @@ void CALIB_PROC::readCameraIntrAndExtr(){
 		printf("CALIB_PROC: valid_calib_param = true\n");
 	}
 }
+void CALIB_PROC::readProjIntrAndExtr(){
+	std::stringstream sstm;
+	sstm << proj_calib_file_path << "calibration.yml";
+
+	if( checkIfFileExist(sstm.str()) ){
+		FileStorage fsi(sstm.str(), FileStorage::READ);
+		fsi["cam_K"]			 >> cam_K;
+		fsi["cam_kc"]		 	 >> cam_kc;
+		fsi["proj_K"]			 >> proj_K;
+		fsi["proj_kc"]			 >> proj_kc;
+		fsi["R"]				 >> proj_R;
+		fsi["T"]				 >> proj_T;
+		fsi["CamProjHomography"] >> CamProjHomography;
+		fsi.release();
+	}
+	if( cam_K.empty() || cam_kc.empty() || proj_K.empty() || proj_kc.empty() || proj_R.empty() || proj_T.empty() ){
+		valid_proj_calib_param = false;
+	}else{
+		valid_proj_calib_param = true;
+		printf("CALIB_PROC: valid_proj_calib_param = true\n");
+	}
+}
 void CALIB_PROC::stereoCalibAndRectify(){
-	cv::Size boardSize = cv::Size(13, 9);
+	cv::Size boardSize = cv::Size(17, 13);
     bool showRectified = true;
 
 	std::stringstream sstm;

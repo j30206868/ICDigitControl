@@ -5,6 +5,8 @@ raw/*
 clkernel/*
 Calibration(Sam)/*
 Callback.vcxproj.*
+原本的calibration影像(自己重架之前)/*
+Projector/*
 main.exe
 *.xml
 *.vcxproj

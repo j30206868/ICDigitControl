@@ -38,6 +38,17 @@ public:
 	cv::Rect validRoi[2];
 	cv::Rect commonRoi;
 	//
+	bool valid_proj_calib_param;
+	std::string proj_calib_file_path;
+	cv::Mat cam_K;
+	cv::Mat cam_kc;
+	cv::Mat proj_K;
+	cv::Mat proj_kc;
+	cv::Mat proj_R;
+	cv::Mat proj_T;
+	//
+	cv::Mat CamProjHomography;
+	//
 	std::string calib_img_path;
 	std::string img_list_xml_path;
 	std::string img_list_xml_fname;
@@ -49,6 +60,7 @@ public:
 	
 	void init();
 	void readCameraIntrAndExtr();
+	void readProjIntrAndExtr();
 
 	void openImgListFileStream();
 	void writeToImgListFileStream(std::string fname);

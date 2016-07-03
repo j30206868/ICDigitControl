@@ -34,7 +34,18 @@ int main(int argc, char* argv[])
 	DUAL_VCD_READER myreader;
 	myreader.init();
 	myreader.start(mycallback);
+	/*
+	cv::Mat left = cv::imread("raw/left1.bmp");
+	cv::Mat right = cv::imread("raw/right1.bmp");
 
+	int multiplier = 2;
+	cv::Mat left_b, right_b;
+	cv::resize(left, left_b, cv::Size(left.cols * multiplier, left.rows * multiplier));
+	cv::resize(right, right_b, cv::Size(left.cols * multiplier, left.rows * multiplier));
+
+	mycallback->flipLeftRight(left_b, right_b);
+	mycallback->imgProc(left_b, right_b);
+	*/
 	std::cout << "Press any key to continue!" << std::endl;
 	std::cin.get();
 	return 0;
