@@ -1,9 +1,9 @@
-#include "cwz_vcd_callback.h"
+ï»¿#include "cwz_vcd_callback.h"
 
 void keyLog(char *inputKey, bool *isKeyPressed, bool *isKeyClicked, bool *running){
-	//¸Ô²ÓªºVirtual Key Code¹ï·Óªí½Ð¨£https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
-	//Virtual Key Code¨S¦³¤j¤p¼g¤§¤À, ¥u¬Ophysically mapping¨ìÁä½L
-	//¤]¥i¥H±±¨î·Æ¹«, ¤£¹L·Æ¹«ªº¥ª¥kÁä¬Ophysically mapping, ¥i¯à·|ÄA­Ë
+	//ï¿½Ô²Óªï¿½Virtual Key Codeï¿½ï¿½Óªï¿½Ð¨ï¿½https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
+	//Virtual Key Codeï¿½Sï¿½ï¿½ï¿½jï¿½pï¿½gï¿½ï¿½ï¿½ï¿½, ï¿½uï¿½Ophysically mappingï¿½ï¿½ï¿½ï¿½L
+	//ï¿½]ï¿½iï¿½Hï¿½ï¿½ï¿½ï¿½Æ¹ï¿½, ï¿½ï¿½ï¿½Lï¿½Æ¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½kï¿½ï¿½Ophysically mapping, ï¿½iï¿½ï¿½|ï¿½Aï¿½ï¿½
 	char chType[]="ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 	while(*running)
 	{
@@ -154,14 +154,13 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 			refined_dmap = dmap_ref.refinement(dmap_refine::MODE_TREE);
 			cwz_mst::updateSigma(cwz_mst::sigma * 2);
 
-			//§â¶Â¦â¤§¥~¦a¤èªº²`«×¥þ³¡Âk¹s
+			//ï¿½ï¿½Â¦â¤§ï¿½~ï¿½aï¿½èªºï¿½`ï¿½×¥ï¿½ï¿½ï¿½ï¿½kï¿½s
 			for(int i=0 ; i<info->node_c ; i++){
 				if(dmap_generator.left_gray_1d_arr[i] >= 150){
 					refined_dmap[i] = 0;
 				}
 			}
-
-			//ÁÙ­ì3ºû
+			//ï¿½Ù­ï¿½3ï¿½ï¿½
 			//applyHomography(left, subsample_divider);
 			cv::Mat proj = cv::Mat(left.rows, left.cols, CV_8UC1);
 			memset(proj.data, 255, sizeof(uchar) * left.rows * left.cols);
@@ -171,8 +170,8 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 				show_cv_img("left_dmap", left_dmap, info->img_height, info->img_width, 1, false);
 			if(false)
 				show_cv_img("right_dmap", right_dmap, info->img_height, info->img_width, 1, false);
-			//Åã¥Ü²`«×¼v¹³ ¨Ã¦bwindow¼ÐÃD¥[¤Wframe_count½s¸¹
-			show_cv_img(0, "²`«×¼v¹³", refined_dmap, info->img_height, info->img_width, 1, true);
+			//ï¿½ï¿½Ü²`ï¿½×¼vï¿½ï¿½ ï¿½Ã¦bwindowï¿½ï¿½ï¿½Dï¿½[ï¿½Wframe_countï¿½sï¿½ï¿½
+			show_cv_img(0, "ï¿½`ï¿½×¼vï¿½ï¿½", refined_dmap, info->img_height, info->img_width, 1, true);
 
 			write_cv_img(disp_fcount+1, "raw/left", left);
 			write_cv_img(disp_fcount+1, "raw/right", right);
@@ -225,9 +224,9 @@ void MyVCDCallback::histogramEqualize(cv::Mat input, int channel){
 	}
 }
 void MyVCDCallback::toggleCalibProc(cv::Mat left, cv::Mat right, char inputKeyAtBegin){
-	//«öC¶}©l¦¬¶°·sªº®Õ¥¿¼v¹³
-		//«öSÀx¦s·sªº®Õ¥¿¼v¹³
-	//¦A«öCµ²§ô¦¬¶° ¨Ã©I¥sstereoCalibAndRectify
+	//ï¿½ï¿½Cï¿½}ï¿½lï¿½ï¿½ï¿½ï¿½ï¿½sï¿½ï¿½ï¿½Õ¥ï¿½ï¿½vï¿½ï¿½
+		//ï¿½ï¿½Sï¿½xï¿½sï¿½sï¿½ï¿½ï¿½Õ¥ï¿½ï¿½vï¿½ï¿½
+	//ï¿½Aï¿½ï¿½Cï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã©Iï¿½sstereoCalibAndRectify
 	if(inputKeyAtBegin == 'C'){
 		if( isCalibrationOn ){
 			calib_proc.closeImgListFileStream();
@@ -252,7 +251,7 @@ void MyVCDCallback::toggleCalibProc(cv::Mat left, cv::Mat right, char inputKeyAt
 		}
 	}
 
-	//«öT toggle¬O§_­n¨Ï¥Îcalibration process
+	//ï¿½ï¿½T toggleï¿½Oï¿½_ï¿½nï¿½Ï¥ï¿½calibration process
 	if(inputKeyAtBegin == 'T'){
 		calib_proc.valid_calib_param = calib_proc.valid_calib_param ? false : true;
 		calib_proc.valid_calib_param ? printf("calib_proc.valid_calib_param: true, is calibrated\n") : printf("calib_proc.valid_calib_param: false, not calibrated\n");
@@ -320,13 +319,17 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 	cv::Mat t_mat = calib_proc.proj_T;
 	cv::Mat p2_mat = calib_proc.proj_K;*/
 	
-	/*cv::Mat r_mat = calib_proc.proj_R;
+	cv::Mat q_mat = calib_proc.Q;
+	cv::Mat r_mat = calib_proc.proj_R;
 	cv::Mat t_mat = calib_proc.proj_T;
-	cv::Mat p2_mat = calib_proc.proj_K;*/
+	cv::Mat p2_mat = calib_proc.proj_K;
 	
+	/*cv::Mat q_mat = calib_proc.Q;
 	cv::Mat r_mat = calib_proc.R;
 	cv::Mat t_mat = calib_proc.T;
-	cv::Mat p2_mat = calib_proc.cameraMatrix[1];
+	cv::Mat p2_mat = cv::Mat(3, 3, CV_64FC1);
+	for(int i=0 ; i<3; i++)for(int j=0 ; j<3 ; j++)
+		p2_mat.at<double>(i,j) = calib_proc.P2.at<double>(i,j);*/
 
 	int w = left.cols;
 	int h = left.rows;
@@ -336,7 +339,7 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 		left_2d_points = cv::Mat(4, node_c, CV_64FC1);
 		left_2d_points_data = (double *)left_2d_points.data;
 		is_left_2d_points_init = true;
-		//ªì©l¤Æ x, y, ¸ò³Ì«áªº 1
+		//ï¿½ï¿½lï¿½ï¿½ x, y, ï¿½ï¿½Ì«áªº 1
 		int x = 0;
 		int y = 0;
 		double *left_2d_points_data_x = &left_2d_points_data[0];
@@ -368,10 +371,10 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 		left_2d_points_data_z[idx] = dmap[idx] * subsample_divider;
 	
 	std::cout << "Q Matrix" << std::endl;
-	std::cout << calib_proc.Q << std::endl;
+	std::cout << q_mat << std::endl;
 
-	//±qhomogeneous coordinateÂà¦^¥¿±`3d®y¼Ð
-	cv::Mat left_3d_homo_points = calib_proc.Q * left_2d_points;
+	//ï¿½qhomogeneous coordinateï¿½ï¿½^ï¿½ï¿½ï¿½`3dï¿½yï¿½ï¿½
+	cv::Mat left_3d_homo_points = q_mat * left_2d_points;
 	double *left_3d_homo_points_data = (double *)left_3d_homo_points.data;
 	double *left_3d_homo_points_data_x = &left_3d_homo_points_data[0];
 	double *left_3d_homo_points_data_y = &left_3d_homo_points_data[node_c];
@@ -445,7 +448,7 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 	double *reulst_2d_points_data_x = reulst_2d_points_data;
 	double *reulst_2d_points_data_y = &reulst_2d_points_data[node_c];
 	double *reulst_2d_points_data_w = &reulst_2d_points_data[node_c*2];
-	//¶ñ¦â
+	//ï¿½ï¿½ï¿½
 	uchar *proj_data = proj.data;
 	uchar *left_data = left.data;
 	for(int i = 0 ; i < node_c ; i++){
@@ -453,7 +456,7 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 		int oy = i / w;
 		//if(ox < 300 || ox > 480 || oy < 160 || oy > 360)
 		//	continue;
-		if(dmap[i] == 0)
+		if(dmap[i] <= 50)
 			continue;
 
 		double _x = (reulst_2d_points_data_x[i] / reulst_2d_points_data_w[i]) / subsample_divider;
@@ -478,8 +481,16 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 		}
 	}
 
-	show_cv_img("", proj.data, proj.rows, proj.cols, 1, true);
-	//show_cv_img_fullscreen("proj", proj.data, proj.rows, proj.cols, 1, false);
-	
+	cv::Mat proj_tmp = proj.clone();
+	cv::resize(proj_tmp, proj, cv::Size(proj.cols*subsample_divider, proj.rows*subsample_divider));
+
+	cv::Size proj_size = cv::Size(1024, 768);
+	proj = proj(cv::Rect(0, 0, proj_size.width, proj_size.height));
+	/*cv::namedWindow("proj result");
+	cv::imshow("proj result", proj);
+	cv::waitKey(0);*/
+	//show_cv_img("", proj.data, proj.rows, proj.cols, 1, true);
+	show_cv_img_fullscreen("proj", proj, false);
+
 	return true;
 }
