@@ -25,6 +25,20 @@ int main(int argc, char* argv[])
 	imshow("Output", img);
 	cvWaitKey(0);*/
 
+	/*cv::Mat borderWhiteImg = cv::Mat(768, 1024, CV_8UC1);
+	int bsize = 3;
+	for(int y=0 ; y<borderWhiteImg.rows ; y++){
+		uchar *bw_row = borderWhiteImg.row(y).data;
+		if(y < bsize || y > borderWhiteImg.rows-1-bsize){
+			memset(bw_row, 255, sizeof(uchar) * borderWhiteImg.cols);
+		}else{
+			memset(&bw_row[0], 255, sizeof(uchar) * bsize);
+			memset(&bw_row[borderWhiteImg.cols-1-bsize], 255, sizeof(uchar) * bsize);
+		}
+	}
+	show_cv_img_fullscreen("proj", borderWhiteImg, true);*/
+
+
 	MyVCDCallback *mycallback = new MyVCDCallback();
 	//mycallback->calib_proc.stereoCalibAndRectify();
 
@@ -32,10 +46,10 @@ int main(int argc, char* argv[])
 	reader.init();
 	reader.start(mycallback);*/
 	DUAL_VCD_READER myreader;
-	myreader.init();
+	myreader.init(false);
 	myreader.start(mycallback);
-	/*
-	cv::Mat left = cv::imread("raw/left1.bmp");
+	
+	/*cv::Mat left = cv::imread("raw/left1.bmp");
 	cv::Mat right = cv::imread("raw/right1.bmp");
 
 	int multiplier = 2;
@@ -44,8 +58,8 @@ int main(int argc, char* argv[])
 	cv::resize(right, right_b, cv::Size(left.cols * multiplier, left.rows * multiplier));
 
 	mycallback->flipLeftRight(left_b, right_b);
-	mycallback->imgProc(left_b, right_b);
-	*/
+	mycallback->imgProc(left_b, right_b);*/
+	
 	std::cout << "Press any key to continue!" << std::endl;
 	std::cin.get();
 	return 0;

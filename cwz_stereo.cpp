@@ -131,7 +131,7 @@ StereoCalib(std::string calib_yml_path, const vector<string>& imagelist, Size bo
 
     bool displayCorners = false;//true;
     const int maxScale = 2;
-    const float squareSize = 0.5f;  // Set this to your actual square size
+    const float squareSize = 5.0f;  // Set this to your actual square size
     // ARRAY AND VECTOR STORAGE:
 
     vector<vector<Point2f> > imagePoints[2];
@@ -223,12 +223,27 @@ StereoCalib(std::string calib_yml_path, const vector<string>& imagelist, Size bo
     imagePoints[1].resize(nimages);
     objectPoints.resize(nimages);
 
-    for( i = 0; i < nimages; i++ )
-    {
+	for( i = 0; i < nimages; i++ )
         for( j = 0; j < boardSize.height; j++ )
             for( k = 0; k < boardSize.width; k++ )
                 objectPoints[i].push_back(Point3f(j*squareSize, k*squareSize, 0));
-    }
+
+	/*for( i = 0; i < nimages; i++ )
+    {
+		printf("World[%02d] boardSize(%d, %d)\n", i, boardSize.width, boardSize.height);
+        for( j = 0; j < boardSize.height; j++ )
+            for( k = 0; k < boardSize.width; k++ ){
+				std::cout << "	" << Point3f(j*squareSize, k*squareSize, 0) << std::endl;
+			}
+		system("PAUSE");
+		printf("Img[%02d]\n", i);
+		for(int idx=0 ; idx<imagePoints[0][i].size() ; idx++){
+			std::cout << "	" << imagePoints[0][i][idx]<< std::endl;
+		}
+		system("PAUSE");
+    }*/
+
+
 
     cout << "Running stereo calibration ...\n";
 
@@ -483,7 +498,7 @@ void CALIB_PROC::readProjIntrAndExtr(){
 	}
 }
 void CALIB_PROC::stereoCalibAndRectify(){
-	cv::Size boardSize = cv::Size(17, 13);
+	cv::Size boardSize = cv::Size(13, 17);
     bool showRectified = true;
 
 	std::stringstream sstm;

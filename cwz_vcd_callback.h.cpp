@@ -84,8 +84,8 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 		histogramEqualize(right, ch);
 	}	
 
-	//showLeftRightMerged(left, right);
-	showLeftRight(left, right);
+	showLeftRightMerged(left, right);
+	//showLeftRight(left, right);
 
 	//printf("img cut dimension(%d, %d)\n", left.cols, left.rows);
 	if(calib_proc.valid_calib_param){
@@ -131,7 +131,7 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 		//
 		//inputKeyAtBegin='D';
 		//left = cv::imread("raw/left1.bmp");
-		//cright = cv::imread("raw/right1.bmp");
+		//right = cv::imread("raw/right1.bmp");
 		//
 
 		if(inputKeyAtBegin == 'D' && isDispInit==true){
@@ -161,7 +161,7 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 				}
 			}
 			//�٭�3��
-			//applyHomography(left, subsample_divider);
+			applyHomography(left, subsample_divider);
 			cv::Mat proj = cv::Mat(left.rows, left.cols, CV_8UC1);
 			memset(proj.data, 255, sizeof(uchar) * left.rows * left.cols);
 			convertLeftToProj(left, refined_dmap, proj, subsample_divider);
@@ -274,7 +274,7 @@ void MyVCDCallback::showLeftRightMerged(cv::Mat left, cv::Mat right){
 	cv::Mat frameRightPart = frame(cv::Rect(left.cols, 0, right.cols, right.rows));
 	resize(right, frameRightPart, frameRightPart.size(), 0, 0, CV_INTER_AREA);
 
-	int lineAmt = 18;
+	int lineAmt = 30;
 	int step = frame.rows / (lineAmt+1);
 	for( int j = step; j <= step * lineAmt; j += step)
         line(frame, cv::Point(0, j), cv::Point(frame.cols, j), cv::Scalar(0), 2, 8);
@@ -300,13 +300,14 @@ void MyVCDCallback::applyHomography(cv::Mat left, int subsample_divider){
 	cv::cvtColor(left, grayLeft, CV_RGB2GRAY);
 	cv::Mat doubleLeft = cv::Mat(grayLeft.rows, grayLeft.cols, CV_64FC1);
 	grayLeft.convertTo(doubleLeft, CV_64FC1);*/
-	
-	cv::Mat left_b;
-	cv::resize(left, left_b, cv::Size(left.rows * subsample_divider, left.cols * subsample_divider));
+	if(!calib_proc.CamProjHomography.empty()){
+		cv::Mat left_b;
+		cv::resize(left, left_b, cv::Size(left.rows * subsample_divider, left.cols * subsample_divider));
 
-	cv::Mat result;
-	cv::warpPerspective(left_b, result, calib_proc.CamProjHomography, cv::Size(800, 600), CV_INTER_LINEAR);
-	show_cv_img("ApplyHomography", result.data, result.rows, result.cols, 3, false);
+		cv::Mat result;
+		cv::warpPerspective(left_b, result, calib_proc.CamProjHomography, cv::Size(1280, 960), CV_INTER_LINEAR);
+		show_cv_img("ApplyHomography", result.data, result.rows, result.cols, 3, false);
+	}
 }
 
 bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat proj, int subsample_divider){
@@ -352,7 +353,7 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 
 			int ox = idx % w;
 			int oy = idx / w;
-			if(ox >= 365 && ox <= 367 && oy == 204)
+			if(ox >= 337 && ox <= 339 && (oy == 211 || oy == 214))
 				printf("X:%d Y:%d = left_2d_points(%f, %f, %d)\n", ox, oy, left_2d_points_data_x[idx]/left_2d_points_data_w[idx], left_2d_points_data_y[idx]/left_2d_points_data_w[idx], dmap[idx]*subsample_divider);
 
 			x++;
@@ -434,7 +435,7 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 		int ox = idx % w;
 		int oy = idx / w;
 
-		if(ox >= 365 && ox <= 367 && oy == 204){
+		if(ox >= 337 && ox <= 339 && (oy == 211 || oy == 214)){
 			printf("X:%d Y:%d = left_3d(%f, %f, %f) proj_3d(%f, %f, %f)\n", ox, oy, 
 														left_3d_points_data_x[idx], left_3d_points_data_y[idx], left_3d_points_data_z[idx],
 														result_3d_points_x[idx], result_3d_points_y[idx], result_3d_points_z[idx]);
@@ -465,7 +466,7 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 		//_x = ox - dmap[i];
 		//_y = oy;
 
-		if(ox >= 365 && ox <= 367 && oy == 204)
+		if(ox >= 337 && ox <= 339 && (oy == 211 || oy == 214))
 			printf("X:%d Y:%d d:%d = (%f, %f)\n", ox, oy, dmap[i], _x, _y);
 
 		uchar origin_pixel = left_data[i*3];
@@ -480,16 +481,15 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 			proj_data[idx+w+1] = origin_pixel;
 		}
 	}
-
+	
 	cv::Mat proj_tmp = proj.clone();
 	cv::resize(proj_tmp, proj, cv::Size(proj.cols*subsample_divider, proj.rows*subsample_divider));
-
 	cv::Size proj_size = cv::Size(1024, 768);
 	proj = proj(cv::Rect(0, 0, proj_size.width, proj_size.height));
-	/*cv::namedWindow("proj result");
+	cv::namedWindow("proj result", CV_WINDOW_FREERATIO);
 	cv::imshow("proj result", proj);
-	cv::waitKey(0);*/
-	//show_cv_img("", proj.data, proj.rows, proj.cols, 1, true);
+	cv::waitKey(0);
+	//show_cv_img("proj.data", proj.data, proj.rows, proj.cols, 1, true);
 	show_cv_img_fullscreen("proj", proj, false);
 
 	return true;
