@@ -59,9 +59,14 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 
 	flipLeftRight(left, right);
 
+	showLeftRight("Raw_", left, right);
+
 	//calib_proc.remapAndDrawRoi(left, right);
 	calib_proc.remapping(left, right);
 	//calib_proc.remapAndCutRoi(left, right);
+
+	//showLeftRightMerged(left, right);
+	//showLeftRight("Rectified_", left, right);
 
 	if(inputKeyAtBegin == 'H'){
 		highPassOn = highPassOn? false : true;
@@ -83,9 +88,6 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 		highPass(right, ch, 50);
 		histogramEqualize(right, ch);
 	}	
-
-	showLeftRightMerged(left, right);
-	//showLeftRight(left, right);
 
 	//printf("img cut dimension(%d, %d)\n", left.cols, left.rows);
 	if(calib_proc.valid_calib_param){
@@ -164,7 +166,7 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 			applyHomography(left, subsample_divider);
 			cv::Mat proj = cv::Mat(left.rows, left.cols, CV_8UC1);
 			memset(proj.data, 255, sizeof(uchar) * left.rows * left.cols);
-			convertLeftToProj(left, refined_dmap, proj, subsample_divider);
+			convertLeftToProj(left, right, refined_dmap, proj, subsample_divider);
 
 			if(false)
 				show_cv_img("left_dmap", left_dmap, info->img_height, info->img_width, 1, false);
@@ -257,14 +259,18 @@ void MyVCDCallback::toggleCalibProc(cv::Mat left, cv::Mat right, char inputKeyAt
 		calib_proc.valid_calib_param ? printf("calib_proc.valid_calib_param: true, is calibrated\n") : printf("calib_proc.valid_calib_param: false, not calibrated\n");
 	}
 }
-void MyVCDCallback::showLeftRight(cv::Mat left, cv::Mat right){
-	cv::namedWindow("left", CV_WINDOW_KEEPRATIO);
-	cv::imshow("left", left);
-	cvWaitKey(1);
-	cv::namedWindow("right", CV_WINDOW_KEEPRATIO);
-	cv::imshow("right", right);
+void MyVCDCallback::showLeftRight(std::string pre_title, cv::Mat left, cv::Mat right){
+	std::stringstream sstm;
+	sstm << pre_title << "left";
+	cv::namedWindow(sstm.str(), CV_WINDOW_KEEPRATIO);
+	cv::imshow(sstm.str(), left);
 	cvWaitKey(1);
 
+	sstm.str("");
+	sstm << pre_title << "right";
+	cv::namedWindow(sstm.str(), CV_WINDOW_KEEPRATIO);
+	cv::imshow(sstm.str(), right);
+	cvWaitKey(1);
 }
 void MyVCDCallback::showLeftRightMerged(cv::Mat left, cv::Mat right){
 	cv::Mat frame;
@@ -310,72 +316,109 @@ void MyVCDCallback::applyHomography(cv::Mat left, int subsample_divider){
 	}
 }
 
-bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat proj, int subsample_divider){
-	if( !calib_proc.valid_proj_calib_param )
-		return false;
-
-	printf("convertLeftToProj: subsample_divider = %d\n", subsample_divider);
-
-	/*cv::Mat r_mat = calib_proc.proj_R.inv();
-	cv::Mat t_mat = calib_proc.proj_T;
-	cv::Mat p2_mat = calib_proc.proj_K;*/
-	
-	cv::Mat q_mat = calib_proc.Q;
-	cv::Mat r_mat = calib_proc.proj_R;
-	cv::Mat t_mat = calib_proc.proj_T;
-	cv::Mat p2_mat = calib_proc.proj_K;
-	
-	/*cv::Mat q_mat = calib_proc.Q;
-	cv::Mat r_mat = calib_proc.R;
-	cv::Mat t_mat = calib_proc.T;
-	cv::Mat p2_mat = cv::Mat(3, 3, CV_64FC1);
-	for(int i=0 ; i<3; i++)for(int j=0 ; j<3 ; j++)
-		p2_mat.at<double>(i,j) = calib_proc.P2.at<double>(i,j);*/
-
-	int w = left.cols;
-	int h = left.rows;
+void getUndoRectifyLeftCoord(cv::Mat &left_2d_points, CALIB_PROC &calib_proc, CWZDISPTYPE *dmap, int w, int h, int subsample_divider){
 	int node_c = w * h;
-	
-	if(!is_left_2d_points_init){
-		left_2d_points = cv::Mat(4, node_c, CV_64FC1);
-		left_2d_points_data = (double *)left_2d_points.data;
-		is_left_2d_points_init = true;
-		//��l�� x, y, ��̫᪺ 1
-		int x = 0;
-		int y = 0;
-		double *left_2d_points_data_x = &left_2d_points_data[0];
-		double *left_2d_points_data_y = &left_2d_points_data[node_c];
-		double *left_2d_points_data_w = &left_2d_points_data[node_c*3];
-		for(int idx = 0 ; idx < node_c ; idx++){
-			left_2d_points_data_x[idx] = x * subsample_divider;
-			left_2d_points_data_y[idx] = y * subsample_divider;
-			left_2d_points_data_w[idx] = 1;
 
-			int ox = idx % w;
-			int oy = idx / w;
-			if(ox >= 337 && ox <= 339 && (oy == 211 || oy == 214))
-				printf("X:%d Y:%d = left_2d_points(%f, %f, %d)\n", ox, oy, left_2d_points_data_x[idx]/left_2d_points_data_w[idx], left_2d_points_data_y[idx]/left_2d_points_data_w[idx], dmap[idx]*subsample_divider);
-
-			x++;
-			if(x >= w){
-				x = 0;
-				y++;
-			}
-		}
-		//
-		left_3d_points = cv::Mat(3, node_c, CV_64FC1);
-		left_3d_points_data = (double *) left_3d_points.data;
-	}
-
+	double *left_2d_points_data = (double *)left_2d_points.data;
+	double *left_2d_points_data_x = &left_2d_points_data[0];
+	double *left_2d_points_data_y = &left_2d_points_data[node_c];
 	double *left_2d_points_data_z = &left_2d_points_data[node_c*2];
-	for(int idx = 0 ; idx < node_c ; idx++)
+	double *left_2d_points_data_w = &left_2d_points_data[node_c*3];
+	int x = 0;
+	int y = 0;
+	cv::Mat rectified_2d_homo = cv::Mat(3, 1, CV_64FC1);
+	cv::Mat R_inverse = calib_proc.R1.inv();
+	double *rectified_2d_homo_data = (double *)rectified_2d_homo.data;
+
+	//newCameraMatrix為3x4矩陣
+	double new_fx = calib_proc.P1.at<double>(0, 0);
+	double new_cx = calib_proc.P1.at<double>(0, 2);
+	double new_fy = calib_proc.P1.at<double>(1, 1);
+	double new_cy = calib_proc.P1.at<double>(1, 2);
+	//CameraMatrix為3x3矩陣
+	double fx = calib_proc.cameraMatrix[0].at<double>(0, 0);
+	double cx = calib_proc.cameraMatrix[0].at<double>(0, 2);
+	double fy = calib_proc.cameraMatrix[0].at<double>(1, 1);
+	double cy = calib_proc.cameraMatrix[0].at<double>(1, 2);
+	double focal_length = fx;
+
+	double cx_right = calib_proc.cameraMatrix[1].at<double>(0, 2);
+
+	for(int idx = 0 ; idx < node_c ; idx++){
+		rectified_2d_homo_data[0] = (x - new_cx) / new_fx;
+		rectified_2d_homo_data[1] = (y - new_cy) / new_fy;
+		rectified_2d_homo_data[2] = 1;
+
+		cv::Mat real_homo_coord = R_inverse * rectified_2d_homo;
+		
+		double real_x_coord = real_homo_coord.at<double>(0) / real_homo_coord.at<double>(2);
+		double real_y_coord = real_homo_coord.at<double>(1) / real_homo_coord.at<double>(2);
+
+		double real_x = real_x_coord * fx + cx;
+		double real_y = real_y_coord * fy + cy;
+
+		left_2d_points_data_x[idx] = real_x    * subsample_divider;
+		left_2d_points_data_y[idx] = real_y    * subsample_divider;
 		left_2d_points_data_z[idx] = dmap[idx] * subsample_divider;
-	
+
+		x++;
+		if(x >= w){
+			x = 0;
+			y++;
+		}
+	}
+}
+void getRectifiedLeftCoord(cv::Mat &left_2d_points, CWZDISPTYPE *dmap, int w, int h, int subsample_divider){
+	int node_c = w * h;
+
+	double *left_2d_points_data = (double *)left_2d_points.data;
+	double *left_2d_points_data_x = &left_2d_points_data[0];
+	double *left_2d_points_data_y = &left_2d_points_data[node_c];
+	double *left_2d_points_data_z = &left_2d_points_data[node_c*2];
+	double *left_2d_points_data_w = &left_2d_points_data[node_c*3];
+	int x = 0;
+	int y = 0;
+
+	for(int idx = 0 ; idx < node_c ; idx++){
+		left_2d_points_data_x[idx] = x    * subsample_divider;
+		left_2d_points_data_y[idx] = y    * subsample_divider;
+		left_2d_points_data_z[idx] = dmap[idx] * subsample_divider;
+
+		x++;
+		if(x >= w){
+			x = 0;
+			y++;
+		}
+	}
+}
+void initQMatrixNoRectify(cv::Mat &q_mat, CALIB_PROC &calib_proc){
+	//CameraMatrix為3x3矩陣
+	double fx = calib_proc.cameraMatrix[0].at<double>(0, 0);
+	double cx = calib_proc.cameraMatrix[0].at<double>(0, 2);
+	double fy = calib_proc.cameraMatrix[0].at<double>(1, 1);
+	double cy = calib_proc.cameraMatrix[0].at<double>(1, 2);
+	double focal_length = fx;
+
+	double cx_right = calib_proc.cameraMatrix[1].at<double>(0, 2);
+
+	for(int i=0 ; i<q_mat.cols*q_mat.rows ; i++)
+		q_mat.at<double>(i) = 0.0;
+	q_mat.at<double>(0, 0) = 1.0;
+	q_mat.at<double>(0, 3) = -cx;
+	q_mat.at<double>(1, 1) = 1.0;
+	q_mat.at<double>(1, 3) = -cy;
+	q_mat.at<double>(2, 3) = focal_length;
+	q_mat.at<double>(3, 2) = -1.0 / calib_proc.T.at<double>(0, 0);
+	q_mat.at<double>(3, 3) = (cx - cx_right) / calib_proc.T.at<double>(0, 0);
 	std::cout << "Q Matrix" << std::endl;
 	std::cout << q_mat << std::endl;
-
-	//�qhomogeneous coordinate��^���`3d�y��
-	cv::Mat left_3d_homo_points = q_mat * left_2d_points;
+}
+void initQMatrixRectified(cv::Mat &q_mat, CALIB_PROC &calib_proc){
+	for(int i=0 ; i<q_mat.cols * q_mat.rows ; i++)
+		q_mat.at<double>(i) = calib_proc.Q.at<double>(i);
+}
+void applyQMatrx(cv::Mat left_2d_points, double *left_3d_points_data, cv::Mat Q, int  node_c){
+	cv::Mat left_3d_homo_points = Q * left_2d_points;
 	double *left_3d_homo_points_data = (double *)left_3d_homo_points.data;
 	double *left_3d_homo_points_data_x = &left_3d_homo_points_data[0];
 	double *left_3d_homo_points_data_y = &left_3d_homo_points_data[node_c];
@@ -385,45 +428,16 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 	double *left_3d_points_data_x      = &left_3d_points_data[0];
 	double *left_3d_points_data_y      = &left_3d_points_data[node_c];
 	double *left_3d_points_data_z      = &left_3d_points_data[node_c*2];
-
 	for(int idx = 0 ; idx < node_c ; idx++){
 		left_3d_points_data_x[idx] = left_3d_homo_points_data_x[idx] / left_3d_homo_points_data_w[idx];
 		left_3d_points_data_y[idx] = left_3d_homo_points_data_y[idx] / left_3d_homo_points_data_w[idx];
 		left_3d_points_data_z[idx] = left_3d_homo_points_data_z[idx] / left_3d_homo_points_data_w[idx];
 	}
+}
+void apply3DCoordToRTMatrix(cv::Mat left_3d_points, cv::Mat &result_3d_points, cv::Mat R, cv::Mat T, int w, int h, int node_c){
+	result_3d_points = R * left_3d_points;
 
-	//result_3d_points = proj_R * left_3d_points + proj_T
-	/*double *proj_T_data = (double *)t_mat.data;
-	double *left_3d_points_x = (double *)left_3d_points.data;
-	double *left_3d_points_y = &left_3d_points_x[node_c];
-	double *left_3d_points_z = &left_3d_points_y[node_c];
-	for(int idx=0 ; idx < node_c ; idx++){
-		int ox = idx % w;
-		int oy = idx / w;
-
-		if(ox > 380 && ox < 400 && oy == 408)
-			printf("X:%d Y:%d = left_3d_points(%f, %f, %f)\n", ox, oy, left_3d_points_x[idx], left_3d_points_y[idx], left_3d_points_z[idx]);
-
-		left_3d_points_x[idx] -= proj_T_data[0];
-		left_3d_points_y[idx] -= proj_T_data[1];
-		left_3d_points_z[idx] -= proj_T_data[2];
-
-		if(ox > 380 && ox < 400 && oy == 408)
-			printf("X:%d Y:%d = projector_3d_points(%f, %f, %f)\n", ox, oy, left_3d_points_x[idx], left_3d_points_y[idx], left_3d_points_z[idx]);
-	}*/
-	cv::Mat result_3d_points = r_mat * left_3d_points;
-
-	/*double *result_3d_points_x = (double *)result_3d_points.data;
-	double *result_3d_points_y = &result_3d_points_x[node_c];
-	double *result_3d_points_z = &result_3d_points_y[node_c];
-	for(int idx=0 ; idx < node_c ; idx++){
-		int ox = idx % w;
-		int oy = idx / w;
-		if(ox > 380 && ox < 400 && oy == 408)
-			printf("X:%d Y:%d = rotated projector_3d_points(%f, %f, %f)\n", ox, oy, result_3d_points_x[idx], result_3d_points_y[idx], result_3d_points_z[idx]);
-	}*/
-
-	double *proj_T_data = (double *)t_mat.data;
+	double *proj_T_data = (double *)T.data;
 	double *result_3d_points_x = (double *)result_3d_points.data;
 	double *result_3d_points_y = &result_3d_points_x[node_c];
 	double *result_3d_points_z = &result_3d_points_y[node_c];
@@ -431,7 +445,7 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 		result_3d_points_x[idx] += proj_T_data[0];
 		result_3d_points_y[idx] += proj_T_data[1];
 		result_3d_points_z[idx] += proj_T_data[2];
-
+		/*
 		int ox = idx % w;
 		int oy = idx / w;
 
@@ -440,10 +454,71 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 														left_3d_points_data_x[idx], left_3d_points_data_y[idx], left_3d_points_data_z[idx],
 														result_3d_points_x[idx], result_3d_points_y[idx], result_3d_points_z[idx]);
 		}
-
+		*/
 	}
+}
+bool MyVCDCallback::convertLeftToProj(cv::Mat left, cv::Mat right, CWZDISPTYPE *dmap, cv::Mat proj, int subsample_divider){
+	if( !calib_proc.valid_proj_calib_param )
+		return false;
+
+	printf("convertLeftToProj: subsample_divider = %d\n", subsample_divider);
+	
+	bool GUESS_RIGHT        = false;
+	bool UNDO_RECTIFICATION = true;
+	std::string title       = "Guessed Projector View";
+
+	cv::Mat q_mat = calib_proc.Q;
+	cv::Mat r_mat = calib_proc.proj_R;
+	cv::Mat t_mat = calib_proc.proj_T;
+	cv::Mat target_camera_mat = calib_proc.proj_K;
+
+	if(!UNDO_RECTIFICATION){
+		showLeftRight("Rectified_left_right", left, right);
+	}
+
+	if(GUESS_RIGHT){
+		r_mat = calib_proc.R;
+		t_mat = calib_proc.T;
+		target_camera_mat = cv::Mat(3, 3, CV_64FC1);
+		if(UNDO_RECTIFICATION)
+			for(int i=0 ; i<3; i++)for(int j=0 ; j<3 ; j++)
+				target_camera_mat.at<double>(i,j) = calib_proc.cameraMatrix[1].at<double>(i,j);
+		else
+			for(int i=0 ; i<3; i++)for(int j=0 ; j<3 ; j++)
+				target_camera_mat.at<double>(i,j) = calib_proc.P2.at<double>(i,j);
+		title = "Guessed Right Camera View";
+	}
+
+	int w = left.cols;
+	int h = left.rows;
+	int node_c = w * h;
+	
+	if(!is_left_2d_points_init)
+	{
+		left_2d_points = cv::Mat(4, node_c, CV_64FC1);
+		left_2d_points_data = (double *)left_2d_points.data;
+		is_left_2d_points_init = true;
+
+		double *left_2d_points_data_w = &left_2d_points_data[node_c*3];
+		for(int idx = 0 ; idx < node_c ; idx++)
+			left_2d_points_data_w[idx] = 1;
+		//
+		left_3d_points = cv::Mat(3, node_c, CV_64FC1);
+		left_3d_points_data = (double *) left_3d_points.data;
+	}
+
+	if(UNDO_RECTIFICATION){
+		initQMatrixNoRectify(q_mat, calib_proc);
+		getUndoRectifyLeftCoord(left_2d_points, calib_proc, dmap, w, h, subsample_divider);
+	}else{
+		getRectifiedLeftCoord(left_2d_points, dmap, w, h, subsample_divider);
+	}
+
+	applyQMatrx(left_2d_points, left_3d_points_data, q_mat, node_c);
+	cv::Mat result_3d_points;
+	apply3DCoordToRTMatrix(left_3d_points, result_3d_points, r_mat, t_mat, w, h, node_c);
 	//reulst_2d_points = calib_proc.proj_K * result_3d_points;
-	cv::Mat reulst_2d_points = p2_mat * result_3d_points;
+	cv::Mat reulst_2d_points = target_camera_mat * result_3d_points;
 
 	double *reulst_2d_points_data = (double *) reulst_2d_points.data;
 	double *reulst_2d_points_data_x = reulst_2d_points_data;
@@ -485,12 +560,17 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat p
 	cv::Mat proj_tmp = proj.clone();
 	cv::resize(proj_tmp, proj, cv::Size(proj.cols*subsample_divider, proj.rows*subsample_divider));
 	cv::Size proj_size = cv::Size(1024, 768);
+
+	if(GUESS_RIGHT){
+		proj_size = cv::Size(right.cols * subsample_divider, right.rows * subsample_divider);
+	}
+
 	proj = proj(cv::Rect(0, 0, proj_size.width, proj_size.height));
-	cv::namedWindow("proj result", CV_WINDOW_FREERATIO);
-	cv::imshow("proj result", proj);
+	cv::namedWindow(title, CV_WINDOW_FREERATIO);
+	cv::imshow(title, proj);
 	cv::waitKey(0);
 	//show_cv_img("proj.data", proj.data, proj.rows, proj.cols, 1, true);
-	show_cv_img_fullscreen("proj", proj, false);
+	show_cv_img_fullscreen("FullScreenProjection", proj, false);
 
 	return true;
 }

@@ -28,13 +28,13 @@ public:
 	void histogramEqualize(cv::Mat input, int channel);
 
 	void toggleCalibProc(cv::Mat left, cv::Mat right, char inputKeyAtBegin);
-	void showLeftRight(cv::Mat left, cv::Mat right);
+	void showLeftRight(std::string pre_title, cv::Mat left, cv::Mat right);
 	void showLeftRightMerged(cv::Mat left, cv::Mat right);
 
 	void flipLeftRight(cv::Mat &left, cv::Mat &right);
 
 	void applyHomography(cv::Mat left, int subsample_divider);
-	bool convertLeftToProj(cv::Mat left, CWZDISPTYPE *dmap, cv::Mat proj, int subsample_divider);
+	bool convertLeftToProj(cv::Mat left, cv::Mat right, CWZDISPTYPE *dmap, cv::Mat proj, int subsample_divider);
 
 	bool runningLogger;
 	bool isKeyPressed[MY_VCD_CALLBACK_KEY_LOG_AMT];
