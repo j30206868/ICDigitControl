@@ -6,7 +6,9 @@ clkernel/*
 Calibration(Sam)/*
 Callback.vcxproj.*
 原本的calibration影像(自己重架之前)/*
+Calibration(CCD Fine)/*
 Projector/*
+Projector(fine)/*
 main.exe
 *.xml
 *.vcxproj

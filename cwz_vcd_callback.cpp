@@ -59,15 +59,6 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 
 	flipLeftRight(left, right);
 
-	showLeftRight("Raw_", left, right);
-
-	//calib_proc.remapAndDrawRoi(left, right);
-	calib_proc.remapping(left, right);
-	//calib_proc.remapAndCutRoi(left, right);
-
-	//showLeftRightMerged(left, right);
-	//showLeftRight("Rectified_", left, right);
-
 	if(inputKeyAtBegin == 'H'){
 		highPassOn = highPassOn? false : true;
 	}
@@ -88,6 +79,15 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 		highPass(right, ch, 50);
 		histogramEqualize(right, ch);
 	}	
+
+	showLeftRight("Raw_", left, right);
+
+	//calib_proc.remapAndDrawRoi(left, right);
+	calib_proc.remapping(left, right);
+	//calib_proc.remapAndCutRoi(left, right);
+
+	showLeftRightMerged(left, right);
+	//showLeftRight("Rectified_", left, right);
 
 	//printf("img cut dimension(%d, %d)\n", left.cols, left.rows);
 	if(calib_proc.valid_calib_param){
@@ -156,14 +156,13 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 			refined_dmap = dmap_ref.refinement(dmap_refine::MODE_TREE);
 			cwz_mst::updateSigma(cwz_mst::sigma * 2);
 
-			//��¦⤧�~�a�誺�`�ץ����k�s
 			for(int i=0 ; i<info->node_c ; i++){
 				if(dmap_generator.left_gray_1d_arr[i] >= 150){
 					refined_dmap[i] = 0;
 				}
 			}
-			//�٭�3��
-			applyHomography(left, subsample_divider);
+
+			//applyHomography(left, subsample_divider);
 			cv::Mat proj = cv::Mat(left.rows, left.cols, CV_8UC1);
 			memset(proj.data, 255, sizeof(uchar) * left.rows * left.cols);
 			convertLeftToProj(left, right, refined_dmap, proj, subsample_divider);
@@ -172,8 +171,8 @@ void MyVCDCallback::imgProc(cv::Mat left, cv::Mat right){
 				show_cv_img("left_dmap", left_dmap, info->img_height, info->img_width, 1, false);
 			if(false)
 				show_cv_img("right_dmap", right_dmap, info->img_height, info->img_width, 1, false);
-			//��ܲ`�׼v�� �æbwindow���D�[�Wframe_count�s��
-			show_cv_img(0, "�`�׼v��", refined_dmap, info->img_height, info->img_width, 1, true);
+
+			show_cv_img(0, "Disparity Map", refined_dmap, info->img_height, info->img_width, 1, true);
 
 			write_cv_img(disp_fcount+1, "raw/left", left);
 			write_cv_img(disp_fcount+1, "raw/right", right);
@@ -285,8 +284,8 @@ void MyVCDCallback::showLeftRightMerged(cv::Mat left, cv::Mat right){
 	for( int j = step; j <= step * lineAmt; j += step)
         line(frame, cv::Point(0, j), cv::Point(frame.cols, j), cv::Scalar(0), 2, 8);
 
-	cv::namedWindow("Combined", CV_WINDOW_FREERATIO);
-	cv::imshow("Combined", frame);
+	cv::namedWindow("Merged", CV_WINDOW_FREERATIO);
+	cv::imshow("Merged", frame);
 	cvWaitKey(1);
 }
 
@@ -316,6 +315,31 @@ void MyVCDCallback::applyHomography(cv::Mat left, int subsample_divider){
 	}
 }
 
+inline void normalizeHomoCoord_64FC1(cv::Mat &coords){
+	double *x, *y, *z, *w;
+	
+	x = (double *)coords.data;
+	y = (double *)&x[coords.cols];
+	if(coords.rows == 3){
+		w = (double *)&y[coords.cols];
+
+		for(int i=0 ; i<coords.cols ; i++){
+			x[i] = x[i] / w[i];
+			y[i] = y[i] / w[i];
+		}
+	}else if(coords.rows == 4){
+		z = (double *)&y[coords.cols];
+		w = (double *)&z[coords.cols];
+
+		for(int i=0 ; i<coords.cols * coords.rows ; i++){
+			x[i] = x[i] / w[i];
+			y[i] = y[i] / w[i];
+			z[i] = z[i] / w[i];
+		}
+	}else{
+		printf("homoCoordToNormal_64FC1 Invalid rows of cv::Mat: %d\n", coords.rows);
+	}
+}
 void getUndoRectifyLeftCoord(cv::Mat &left_2d_points, CALIB_PROC &calib_proc, CWZDISPTYPE *dmap, int w, int h, int subsample_divider){
 	int node_c = w * h;
 
@@ -472,10 +496,6 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, cv::Mat right, CWZDISPTYPE *
 	cv::Mat t_mat = calib_proc.proj_T;
 	cv::Mat target_camera_mat = calib_proc.proj_K;
 
-	if(!UNDO_RECTIFICATION){
-		showLeftRight("Rectified_left_right", left, right);
-	}
-
 	if(GUESS_RIGHT){
 		r_mat = calib_proc.R;
 		t_mat = calib_proc.T;
@@ -520,34 +540,29 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, cv::Mat right, CWZDISPTYPE *
 	//reulst_2d_points = calib_proc.proj_K * result_3d_points;
 	cv::Mat reulst_2d_points = target_camera_mat * result_3d_points;
 
-	double *reulst_2d_points_data = (double *) reulst_2d_points.data;
-	double *reulst_2d_points_data_x = reulst_2d_points_data;
-	double *reulst_2d_points_data_y = &reulst_2d_points_data[node_c];
-	double *reulst_2d_points_data_w = &reulst_2d_points_data[node_c*2];
-	//���
+	int x_shift = 40;
+	int y_shift = 61;
+
+	normalizeHomoCoord_64FC1(reulst_2d_points);
+
+	double *reulst_2d_points_data_x = (double *) reulst_2d_points.data;
+	double *reulst_2d_points_data_y = &reulst_2d_points_data_x[node_c];
+
 	uchar *proj_data = proj.data;
 	uchar *left_data = left.data;
 	for(int i = 0 ; i < node_c ; i++){
-		int ox = i % w;
-		int oy = i / w;
 		//if(ox < 300 || ox > 480 || oy < 160 || oy > 360)
 		//	continue;
 		if(dmap[i] <= 50)
 			continue;
 
-		double _x = (reulst_2d_points_data_x[i] / reulst_2d_points_data_w[i]) / subsample_divider;
-		double _y = (reulst_2d_points_data_y[i] / reulst_2d_points_data_w[i]) / subsample_divider;
-
-		//_x = ox - dmap[i];
-		//_y = oy;
-
-		if(ox >= 337 && ox <= 339 && (oy == 211 || oy == 214))
-			printf("X:%d Y:%d d:%d = (%f, %f)\n", ox, oy, dmap[i], _x, _y);
+		double _x = (reulst_2d_points_data_x[i]) / subsample_divider;
+		double _y = (reulst_2d_points_data_y[i]) / subsample_divider;
 
 		uchar origin_pixel = left_data[i*3];
 
-		int __x = floor(_x);
-		int __y = floor(_y);
+		int __x = floor(_x) + x_shift;
+		int __y = floor(_y) + y_shift;
 		int idx = abs(__y * w + __x);
 		if(idx > 0 && idx+w+1 < node_c){
 			proj_data[idx]    = origin_pixel;
@@ -568,7 +583,7 @@ bool MyVCDCallback::convertLeftToProj(cv::Mat left, cv::Mat right, CWZDISPTYPE *
 	proj = proj(cv::Rect(0, 0, proj_size.width, proj_size.height));
 	cv::namedWindow(title, CV_WINDOW_FREERATIO);
 	cv::imshow(title, proj);
-	cv::waitKey(0);
+	cv::waitKey(10);
 	//show_cv_img("proj.data", proj.data, proj.rows, proj.cols, 1, true);
 	show_cv_img_fullscreen("FullScreenProjection", proj, false);
 
